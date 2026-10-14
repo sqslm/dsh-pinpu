@@ -19,12 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Bundled third-party components:
-
-- `vendor/pyaudiowpatch` and `vendor/_portaudiowpatch.cp312-win_amd64.pyd` —
-  PyAudioWPatch (MIT), a PortAudio build with WASAPI loopback support, vendored so the
-  plugin needs no dependency installation.
-- PortAudio (MIT) is included inside that build.

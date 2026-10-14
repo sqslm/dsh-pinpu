@@ -10,6 +10,14 @@
 
 ![悬停高亮](docs/preview-hover.png)
 
+## 安装
+
+- **从本仓库装**：在 DSH 的插件页用它安装 GitHub 仓库 `sqslm/dsh-pinpu`（和装其它 GitHub 插件一样），或
+- **本地打包装**：`node tools/install-profile.mjs`（`pnpm pack` → 写进 profile 的 `dsh.profile.bundles`，可 `--uninstall` 撤销、`--dry-run` 只看计划）。
+- 首次装载后**需要重启一次 DSH**：宿主半边（抓音频、注册路由）在进程启动时装载，浏览器半边随页面加载。
+- 运行时无需安装任何依赖：原生采集模块随包分发（见 [THIRD-PARTY.md](THIRD-PARTY.md)），但需要一个 **CPython 3.12** 解释器——DSH 自带的那个就是，插件会自己去找。
+- 平台：目前只支持 **Windows**（WASAPI 回环）。Linux 下 `getUserMedia` 的 monitor 源或 PulseAudio 的 `.monitor` 需要另做，尚未实现。
+
 ## 它改了什么
 
 DSH 的刻度条有自己的状态类（`mark` / `markActive` / `markPreview` / `markBusy` / `markUnloaded`，名字是构建期哈希过的 `xpvNua_*`）。插件**不读类名**，而是：

@@ -1,6 +1,6 @@
 {
   "name": "dsh-pinpu",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Audio-reactive turn rail for DeepSeek Harness: the transcript's own turn marks (the strip in the conversation's right edge) dance to whatever the system is playing, with the built-in last-turn highlight replaced by hover-only highlighting",
   "type": "module",
   "main": "lib/index.js",

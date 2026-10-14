@@ -18,6 +18,23 @@ Hovering brightens exactly one mark (the third screenshot from the same run):
 
 ![hover highlight](docs/preview-hover.png)
 
+## Install
+
+- **From this repository**: add the GitHub repository `sqslm/dsh-pinpu` from DSH's plugin
+  page, the same way any other GitHub plugin is installed, or
+- **Locally packaged**: `node tools/install-profile.mjs` (`pnpm pack`, then write the package
+  into the profile's `dsh.profile.bundles`; `--uninstall` undoes it, `--dry-run` prints the
+  plan).
+- **Restart DSH once** after the first install: the host half (capture, routes) is loaded at
+  process start, the browser half with the page.
+- **No dependencies to install**: the native capture module ships with the plugin (see
+  [THIRD-PARTY.md](THIRD-PARTY.md)), but it needs a **CPython 3.12** interpreter — DSH bundles
+  one and the plugin looks for it on its own.
+- **Windows only** for now (WASAPI loopback). On Linux this needs a different source
+  (`getUserMedia` monitor or PulseAudio `.monitor`), which is not implemented.
+
+![hover highlight](docs/preview-hover.png)
+
 [中文说明 →](README.zh.md)
 
 ## What it changes
