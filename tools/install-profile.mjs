@@ -34,7 +34,7 @@ import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
-import { nodeExecutable as nodeExecutablePath, profileDefault, runtimeRoot } from './app-paths.mjs'
+import { nodeExecutable as nodeExecutablePath, installRoot, profileDefault, resourcesRoot, runtimeRoot } from './app-paths.mjs'
 
 const PROFILE_DEFAULT = profileDefault()
 
@@ -57,6 +57,17 @@ const pack = flag('no-pack', false) !== true
 const runtime = process.env.DSH_RUNTIME ?? runtimeRoot()
 const nodeExecutable = process.env.DSH_NODE_EXECUTABLE ?? nodeExecutablePath()
 const pnpm = join(runtime, 'pnpm', 'bin', 'pnpm.mjs')
+
+// Fail loudly and usefully: a wrong runtime path used to surface as
+// `Cannot find module '…\pnpm.mjs'` from deep inside Node, which reads like a plugin bug
+// rather than "this machine's app is not where the tool looked".
+if (pack && !dryRun && !uninstall && !existsSync(pnpm)) {
+  console.error('cannot find the bundled pnpm at: ' + pnpm)
+  console.error('resolved install root : ' + installRoot())
+  console.error('resolved resources    : ' + resourcesRoot())
+  console.error('set DSH_RUNTIME (or DSH_INSTALL) to point at the installation, then retry.')
+  process.exit(1)
+}
 
 const manifest = JSON.parse(await readFile(join(pluginRoot, 'package.json'), 'utf8'))
 const tarball = join(pluginRoot, manifest.name + '-' + manifest.version + '.tgz')

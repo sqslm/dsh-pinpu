@@ -317,7 +317,39 @@ stopped (the installer does exactly that before replacing files). And when readi
 room through that route, `peak: 0` with `bytes` climbing is the healthy state; `bytes`
 standing still is the fault.
 
-## 11. A capture timer that keeps running looks exactly like a live capture
+## 11. A string test on CSS proves the text, not the cascade
+
+The highlight rule was asserted by searching the generated stylesheet for
+`background:#eee !important` and `opacity:1 !important`, and it passed — while a real browser
+was computing something else for that mark. Everything that decides whether a declaration
+*lands* is invisible to a string search: whether the parser accepted the declaration, what
+the app's own rule for the same pseudo-element says, which of two equal-specificity rules
+comes last, and whether a `!important` in one origin beats a keyframe animation.
+
+So the rule is now checked twice: the stylesheet text for the *intent* (cheap, offline), and
+the **computed** `::before` background/opacity of an actually-highlighted mark in a real
+browser for the *result*. The second one is what caught the discrepancy, and it is the only
+one that can answer "does a highlighted mark look highlighted?":
+
+```
+a highlighted mark, computed: {"reason":"spark","background":"rgb(249, 250, 251)","opacity":"1","scale":"0.723"}
+```
+
+The same trap exists one level up: a rule ordering that keeps hover above highlight cannot be
+seen in the string either, so the preview asserts the on-screen result of pointing at a mark.
+
+## 12. The verification harness needs a retry, or it reports the environment as a bug
+
+The CDP preview failed to start a browser three separate times ("the DevTools endpoint never
+came up") while nothing about the plugin had changed — an updater holding the binary, a port
+taken by another instance, a stale profile lock. Hand-cleaning stray `msedge` processes and
+re-running is not a verification strategy; it is a coin flip that wastes a cycle every time
+and invites the wrong conclusion ("my change broke the page"). `launchWithTarget()` now
+retries with a fresh profile and port, and only fails after several attempts with the real
+error. A tool that cannot distinguish "the environment is flaky" from "the code is broken"
+is not a tool.
+
+## 13. A capture timer that keeps running looks exactly like a live capture
 
 `frames +22/s` with `bytes +0/s` is not "quiet audio", it is no audio: the analysis timer
 ticks on whatever is in the ring, so a dead or blocked helper still advances the frame

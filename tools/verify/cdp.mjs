@@ -9,6 +9,7 @@
  */
 import { spawn } from 'node:child_process'
 import { mkdtemp, readFile } from 'node:fs/promises'
+import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -58,6 +59,37 @@ export async function waitForTarget(port, attempts = 80) {
     await sleep(250)
   }
   throw new Error('the DevTools endpoint never came up')
+}
+
+/**
+ * Launch and wait for a page target, retrying with a fresh profile and port.
+ *
+ * The launch itself is the flakiest step in the whole verification set (a browser that is
+ * already running, a port taken by something else, an update in progress). Rather than
+ * leaving the caller to re-run by hand, retry here and make the failure explicit only after
+ * several attempts, and never leave a half-started browser behind.
+ *
+ * @returns `{ child, port, profile, url }`
+ */
+export async function launchWithTarget({ headless = true, extraArgs = [], attempts = 3 } = {}) {
+  let last = null
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const launched = await launch({ headless, extraArgs })
+    try {
+      const url = await waitForTarget(launched.port)
+      return { ...launched, url }
+    } catch (error) {
+      last = error
+      try {
+        launched.child.kill()
+      } catch {
+        /* already gone */
+      }
+      rmSync(launched.profile, { recursive: true, force: true })
+      await sleep(400)
+    }
+  }
+  throw last ?? new Error('the browser would not start')
 }
 
 /** Connect to one target and return a `send(method, params)` client. */

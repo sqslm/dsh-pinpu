@@ -27,7 +27,7 @@ import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { connect, evaluate, launch, openFile, screenshot, sleep, waitForTarget } from './cdp.mjs'
+import { connect, evaluate, launchWithTarget, openFile, screenshot, sleep } from './cdp.mjs'
 import { darkTokenCss } from './theme.mjs'
 import { loadRailCss } from './rail-css.mjs'
 
@@ -252,6 +252,10 @@ window.__report = function () {
       var value = mark.style.getPropertyValue('--pinpu-scale')
       return value === '' ? null : Number(value)
     }),
+    // Highlights, split by reason: a length at or above the threshold, or a random one.
+    hot: marks.filter(function (mark) { return mark.hasAttribute('data-pinpu-hot') }).length,
+    hotPeak: marks.filter(function (mark) { return mark.getAttribute('data-pinpu-hot') === 'peak' }).length,
+    hotSpark: marks.filter(function (mark) { return mark.getAttribute('data-pinpu-hot') === 'spark' }).length,
     // The app's own state must still be on the elements: we restyle, never rewrite.
     appClassesIntact: marks[14].className.indexOf('${names.markActive}') >= 0 && marks[11].className.indexOf('${names.markBusy}') >= 0,
     styleTag: document.getElementById('dsh-pinpu-rail-style') !== null,
@@ -277,10 +281,10 @@ async function main() {
   const page = join(await mkdtemp(join(tmpdir(), 'dsh-pinpu-preview-')), 'preview.html')
   await writeFile(page, pageHtml())
   await mkdir(outDir, { recursive: true })
-  const { child, port } = await launch({ headless })
+  const { child, port, url: targetUrl } = await launchWithTarget({ headless })
   const shots = []
   try {
-    const client = await connect(await waitForTarget(port))
+    const client = await connect(targetUrl)
     await client.send('Page.enable')
     await client.send('Runtime.enable')
     await openFile(client, page, 600)
@@ -304,11 +308,35 @@ async function main() {
     // silent and hover states, and sampling after those reads a parked rail (every
     // `--pinpu-scale` removed, which `Number(null)` turns into a constant zero).
     const samples = []
+    const hotFrames = { any: 0, peak: 0, spark: 0 }
+    let hotLook = null
     for (let step = 0; step < 28; step += 1) {
       const report = await evaluate(client, 'window.__report()')
       if (Array.isArray(report.scales)) {
         const frame = report.scales.filter((value) => value !== null).map((value) => Number(value))
         if (frame.length > 0) samples.push(frame)
+      }
+      if (report.hot > 0) hotFrames.any += 1
+      if (report.hotPeak > 0) hotFrames.peak += 1
+      if (report.hotSpark > 0) hotFrames.spark += 1
+      // Catch one highlighted mark in the act: the *computed* result is the only proof that
+      // the cascade does what the stylesheet text says.
+      if (hotLook === null && report.hot > 0) {
+        hotLook = await evaluate(
+          client,
+          `(function () {
+            var hot = document.querySelector('[data-pinpu-hot]')
+            if (hot === null) return null
+            var style = getComputedStyle(hot, '::before')
+            return {
+              reason: hot.getAttribute('data-pinpu-hot'),
+              background: style.backgroundColor,
+              opacity: style.opacity,
+              transform: style.transform,
+              scale: hot.style.getPropertyValue('--pinpu-scale'),
+            }
+          })()`,
+        )
       }
       await new Promise((done) => setTimeout(done, 45))
     }
@@ -387,6 +415,8 @@ async function main() {
     console.log('samples taken while playing:', samples.length)
     console.log('samples where the rail moved:', moved, 'of', Math.max(0, samples.length - 1))
     console.log('mark length range across samples:', spread.toFixed(2))
+    console.log('samples with a highlighted mark:', hotFrames.any, 'of', samples.length, '(threshold', hotFrames.peak + ', random', hotFrames.spark + ')')
+    console.log('a highlighted mark, computed:', JSON.stringify(hotLook))
     console.log('(the no-scan measurement lives in tools/verify/dynamics-profile.mjs, on real audio)')
     console.log(
       'VERDICT:',
@@ -398,8 +428,10 @@ async function main() {
         clicks.length === 1 &&
         samples.length > 10 &&
         moved >= samples.length - 8 &&
-        spread > 0.2
-        ? 'the shipped rail was taken over and dances'
+        spread > 0.2 &&
+        hotFrames.peak > 0 &&
+        hotFrames.spark > 0
+        ? 'the shipped rail was taken over, dances, and lights up'
         : 'take-over incomplete (see the report above)',
     )
     console.log('screenshots:')

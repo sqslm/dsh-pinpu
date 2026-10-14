@@ -116,7 +116,37 @@ The host owns the **signal**, the browser owns the **presentation**. Everything 
 | `invert` | `false` | browser | put the low band at the top instead |
 | `colorMode` | `theme` | browser | `theme` keeps the rail's colour; `spectrum` hues by band; `custom` uses one colour |
 | `customColor` | `#4d93f8` | browser | the `custom` colour |
+| `glow` | `true` | browser | let each mark's brightness follow its own level |
+| `hotScale` | `0.85` | browser | **length threshold highlight**: light a mark whose length reaches this fraction of full (`0` = off) |
+| `spark` | `1.5` | browser | **random highlight**: expected highlights per second, each lighting one random mark for 160–420 ms (`0` = off; silence never sparks) |
 | `demo` | `false` | browser | drive the marks with a synthetic waveform while nothing is captured |
+
+### The two highlight modes
+
+Both light up marks that are already there — nothing is drawn, added or moved. A highlighted
+mark takes the same bright colour a hovered mark gets, at full strength, while keeping the
+length the spectrum gave it.
+
+- **Length threshold** (`hotScale`): the comparison is made on the *visible length* — the very
+  value written into `--pinpu-scale` — rather than on the level, so one parameter is only ever
+  interpreted once. The default `0.85` lights a band that is nearly full length; `1.05` is
+  equivalent to off (the spectrum cannot reach it), as is `0`.
+- **Random** (`spark`): a rate, not a probability, because a per-frame chance is meaningless to
+  tune. Each highlight picks one mark that is neither busy nor already lit and lights it for
+  160–420 ms; it releases by itself on a later poll, with no extra timer to leak. **Silence
+  never sparks**, so ordinary listening gets an occasional accent rather than a strobe.
+- A mark that is still generating (`markBusy`) is left entirely alone, and a pointer on the
+  rail still outranks both.
+
+Measured in a real browser (`tools/verify/rail-preview.mjs`, 28 sampled frames):
+
+```
+samples with a highlighted mark: 23 of 28 (threshold 20, random 3)
+a highlighted mark, computed: {"reason":"spark","background":"rgb(249, 250, 251)","opacity":"1","transform":"matrix(0.693…)","scale":"0.723"}
+```
+
+Bright colour, full strength, and the mark's own length (`0.723`) untouched.
+
 
 ### Why auto-gain
 

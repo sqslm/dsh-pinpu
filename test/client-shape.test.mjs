@@ -233,6 +233,22 @@ test('brightness is a second axis of the same level, and hover still wins', () =
   assert.match(css, /transition:[^;]*opacity/)
 })
 
+test('a highlighted mark gets the bright colour, and the pointer still outranks it', () => {
+  const css = __test.cssText({ dim: '#111', bright: '#eee', base: 0.6 })
+  const rules = css.split('}').map((rule) => rule.trim() + '}')
+  const hotRule = rules.find((rule) => rule.includes('[data-pinpu-hot]') && rule.includes('::before'))
+  assert.ok(hotRule !== undefined, 'the highlight rule must exist')
+  assert.match(hotRule, /background:#eee !important/, 'a highlighted mark uses the bright colour')
+  assert.match(hotRule, /opacity:1 !important/, 'and full strength')
+  assert.match(hotRule, /:not\(\[data-pinpu-busy\]\)/, 'a busy mark is never covered by it')
+
+  // Hover and the highlight have equal specificity, so the live+hover rule must come last
+  // for the pointer to win — otherwise a highlight would pin the mark being pointed at.
+  const hotAt = rules.findIndex((rule) => rule.includes('[data-pinpu-hot]'))
+  const liveHoverAt = rules.findIndex((rule) => rule.includes('[data-pinpu-live][data-pinpu-hover]'))
+  assert.ok(hotAt >= 0 && liveHoverAt > hotAt, 'the hover rule must be declared after the highlight rule')
+})
+
 test('theme colours follow the configured mode', () => {
   const theme = realmPlain(__test.themeColors('theme'))
   assert.match(theme.dim, /--dsw-alias-border-l4/)

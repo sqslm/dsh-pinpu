@@ -152,6 +152,120 @@ test('each segment also carries its own brightness, and the switch turns it off'
   engine.stop()
 })
 
+test('a long enough mark lights up, and the threshold is a length', async () => {
+  // levels [1, 0.6, 0.2, 0, 0] → scales [1, 0.76, 0.52, 0.4, 0.4] with the default range, so
+  // only the full-length one is at or above the 0.85 threshold.
+  const harness = createHarness({ fetch: () => ({ status: 'live', silent: false, levels: [1, 0.6, 0.2, 0, 0] }) })
+  const { marks } = buildConversation(harness)
+  const engine = harness.__test.createEngine()
+  configure(engine, { minScale: 0.4, maxScale: 1, hotScale: 0.85, spark: 0 })
+  await harness.settle()
+  harness.advance(60)
+  await harness.settle()
+
+  const hot = marks.map((mark) => mark.getAttribute(harness.__test.HOT_ATTR))
+  // Document order is top → bottom and payload index 0 is the bass at the bottom, so the
+  // *last* mark is the one holding the full-length band here.
+  assert.equal(hot[hot.length - 1], 'peak', 'the full-length mark must be lit')
+  assert.equal(hot.filter((value) => value !== null).length, 1, 'only the mark above the threshold lights up')
+
+  // The threshold is compared against the written length, so raising it above what the
+  // spectrum can produce switches the cue off without any other change.
+  configure(engine, { hotScale: 1.05 })
+  harness.advance(60)
+  await harness.settle()
+  for (const mark of marks) assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), null, 'no mark reaches 1.05')
+
+  // And 0 disables it outright.
+  configure(engine, { hotScale: 0 })
+  harness.advance(60)
+  await harness.settle()
+  for (const mark of marks) assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), null, '0 means off')
+  engine.stop()
+})
+
+test('a quiet band is never pinned hot, and a busy mark keeps its own pulse', async () => {
+  const harness = createHarness({ fetch: () => ({ status: 'live', silent: false, levels: [1, 1, 1, 1, 1] }) })
+  const { marks } = buildConversation(harness)
+  // The app's own pulse on one mark: the plugin recognises it via `::before`'s animation
+  // and must leave that mark alone. Set before the engine's first scan.
+  marks[4].pseudo.animationName = 'rail-busy'
+  const engine = harness.__test.createEngine()
+  configure(engine, { hotScale: 0.85, spark: 0 })
+  await harness.settle()
+  harness.advance(60)
+  await harness.settle()
+  const busy = marks.filter((mark) => mark.hasAttribute(harness.__test.BUSY_ATTR))
+  assert.equal(busy.length, 1, 'the fixture needs a busy mark for this test to mean anything')
+  for (const mark of marks) {
+    if (mark.hasAttribute(harness.__test.BUSY_ATTR)) {
+      assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), null, 'a busy mark must not be taken over')
+    } else {
+      assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), 'peak')
+    }
+  }
+  engine.stop()
+})
+
+test('random highlights appear while playing and expire by themselves', async () => {
+  // A high rate makes the pick certain (rate × cadence > 1), so the test is not a coin flip.
+  const harness = createHarness({ fetch: () => ({ status: 'live', silent: false, levels: [0.2, 0.2, 0.2, 0.2, 0.2] }) })
+  const { marks } = buildConversation(harness)
+  const engine = harness.__test.createEngine()
+  // Levels well under the length threshold, so anything lit is a random highlight.
+  configure(engine, { minScale: 0.4, maxScale: 1, hotScale: 1.2, spark: 30 })
+  await harness.settle()
+  harness.advance(60)
+  await harness.settle()
+
+  const sparks = marks.filter((mark) => mark.getAttribute(harness.__test.HOT_ATTR) === 'spark')
+  assert.equal(sparks.length, 1, 'exactly one mark is picked per highlight')
+  assert.ok(engine.status().hot >= 1, 'the status reports the lit marks')
+
+  // Turn the rate off and let the clock pass the longest highlight window: the release has
+  // to happen by itself, with no extra timer and no accumulated state.
+  configure(engine, { spark: 0 })
+  harness.advance(harness.__test.SPARK_MAX_MS + 200)
+  await harness.settle()
+  for (const mark of marks) {
+    assert.ok(mark.getAttribute(harness.__test.HOT_ATTR) !== 'spark', 'a random highlight must release on its own')
+  }
+  assert.equal(engine.status().hot, 0, 'nothing is lit any more')
+  engine.stop()
+})
+
+test('silence never sparks, and parking clears every highlight', async () => {
+  let payload = { status: 'live', silent: false, levels: [1, 1, 1, 1, 1] }
+  const harness = createHarness({ fetch: () => payload })
+  const { rail, marks } = buildConversation(harness)
+  const engine = harness.__test.createEngine()
+  configure(engine, { hotScale: 0.85, spark: 30, restoreOnSilence: true })
+  await harness.settle()
+  harness.advance(60)
+  await harness.settle()
+  assert.ok(marks.some((mark) => mark.hasAttribute(harness.__test.HOT_ATTR)), 'the loud fixture lights up')
+
+  // Each advance() handles one request (the next poll is skipped while one is in flight),
+  // so silence has to be fed over several rounds to reach the hold.
+  payload = { status: 'live', silent: true, levels: [0, 0, 0, 0, 0] }
+  for (let round = 0; round < 8; round += 1) {
+    harness.advance(150)
+    await harness.settle()
+  }
+  assert.equal(rail.getAttribute(harness.__test.LIVE_ATTR), null, 'the rail is handed back')
+  for (const mark of marks) {
+    assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), null, 'parking clears the highlights too')
+  }
+
+  // A silent stretch must not queue up highlights for later.
+  for (let round = 0; round < 4; round += 1) {
+    harness.advance(150)
+    await harness.settle()
+  }
+  for (const mark of marks) assert.equal(mark.getAttribute(harness.__test.HOT_ATTR), null, 'a silent rail stays dark')
+  engine.stop()
+})
+
 test('while the host is falling through a pause the marks keep fading, then park', async () => {
   // `handlePayload` used to skip painting whenever the payload said `silent`, so a pause
   // froze the rail at its last length and then snapped it back. The host's per-band release

@@ -61,6 +61,12 @@
         customColor: '#4d93f8'
         # Let each segment's brightness follow its level, so a long mark also reads strong.
         glow: true
+        # Light a mark up while its length is at or above this fraction of the full 20 px —
+        # the "this band is being hit right now" cue. 0 switches it off.
+        hotScale: 0.85
+        # Expected random highlights per second while audio plays (0 switches them off;
+        # silence never sparks).
+        spark: 1.5
         # Draw a synthetic waveform while no capture is live (off by default: a dancing
         # rail that reads nothing would be a lie).
         demo: false

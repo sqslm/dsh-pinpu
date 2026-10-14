@@ -26,7 +26,7 @@ const BOOLEAN_FIELDS = [
   'demo',
 ]
 
-const NUMBER_FIELDS = ['fftSize', 'smoothing', 'gain', 'gate', 'minHz', 'maxHz', 'punch', 'flutter', 'minScale', 'maxScale']
+const NUMBER_FIELDS = ['fftSize', 'smoothing', 'gain', 'gate', 'minHz', 'maxHz', 'punch', 'flutter', 'minScale', 'maxScale', 'hotScale', 'spark']
 
 const STRING_FIELDS = ['device', 'colorMode', 'customColor', 'side']
 
@@ -34,7 +34,7 @@ test('DEFAULTS is frozen and has the documented field order', () => {
   assert.equal(Object.isFrozen(DEFAULTS), true)
   assert.deepEqual(FIELD_ORDER, Object.keys(DEFAULTS))
   assert.equal(BANDS, 64)
-  assert.equal(FIELD_ORDER.length, 22)
+  assert.equal(FIELD_ORDER.length, 24)
 })
 
 test('the field types are the ones the schema and the settings card assume', () => {
@@ -57,6 +57,8 @@ test('the defaults are inside the ranges the settings card enforces', () => {
   assert.ok(DEFAULTS.maxHz <= 22050, 'maxHz')
   assert.ok(DEFAULTS.punch >= 0 && DEFAULTS.punch <= 2, 'punch')
   assert.ok(DEFAULTS.flutter >= 0 && DEFAULTS.flutter <= 0.35, 'flutter')
+  assert.ok(DEFAULTS.hotScale >= 0 && DEFAULTS.hotScale <= 1.2, 'hotScale')
+  assert.ok(DEFAULTS.spark >= 0 && DEFAULTS.spark <= 10, 'spark')
   assert.ok(['theme', 'spectrum', 'custom'].includes(DEFAULTS.colorMode), 'colorMode')
   assert.ok(['left', 'right'].includes(DEFAULTS.side), 'side')
 })
