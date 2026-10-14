@@ -1,0 +1,69 @@
+{
+  "name": "dsh-pinpu",
+  "version": "0.3.2",
+  "description": "Audio-reactive turn rail for DeepSeek Harness: the transcript's own turn marks (the strip in the conversation's right edge) dance to whatever the system is playing, with the built-in last-turn highlight replaced by hover-only highlighting",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "lib",
+    "locale",
+    "vendor",
+    "docs",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.mjs",
+    "verify:preview": "node tools/verify/rail-preview.mjs",
+    "verify:host": "node tools/verify/host-smoke.mjs",
+    "verify:contract": "node tools/verify/payload-contract.mjs --installed",
+    "verify:loopback": "%DSH_PYTHON% tools/verify/probe-loopback.py 3",
+    "pack:install": "node tools/install-profile.mjs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "visualizer",
+    "audio",
+    "spectrum",
+    "wasapi-loopback",
+    "turn-rail"
+  ],
+  "icon": "./icon.svg",
+  "author": "sqslm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sqslm/dsh-pinpu.git"
+  },
+  "homepage": "https://github.com/sqslm/dsh-pinpu#readme",
+  "bugs": {
+    "url": "https://github.com/sqslm/dsh-pinpu/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-general"
+      ]
+    }
+  }
+}

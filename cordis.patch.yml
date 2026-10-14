@@ -1,0 +1,66 @@
+# Bundle patch layer for dsh-pinpu: inserts this plugin's composition row.
+#
+# The row is what makes the browser half load at all — `@deepseek-ai/dsh-client-modules`
+# scans the mounted Loader entries for packages declaring `dsh.client`, so a row that is
+# absent (or disabled) also removes the rail animation from the page.
+#
+# Every field below is declared `.volatile()` in lib/index.js. On DSH 0.2.x the settings
+# service projects exactly the volatile fields of this entry into the form keyed by `id`,
+# so Settings → 频谱律动 edits the live values without a restart. Note the Loader's
+# override rule: a user patch that matches `id: pinpu` replaces this **complete** config,
+# so restate every field you still want.
+- insert:
+    - id: pinpu
+      name: dsh-pinpu
+      config:
+        # Master switch. Off means no capture process is spawned at all.
+        enabled: true
+        # Loopback device to capture. Empty = follow the default OUTPUT device, so
+        # whatever the machine is playing is what dances. Otherwise a name substring
+        # or an index from the settings card's device list.
+        device: ''
+        # FFT window: 1024 ≈ 21 ms at 48 kHz — responsive without flicker.
+        fftSize: 1024
+        # Temporal smoothing across analysis frames, 0–0.95.
+        smoothing: 0.78
+        # Post-curve gain, applied before auto-gain.
+        gain: 1
+        # Normalise each band by the loudest band's slow envelope. Without it,
+        # ordinary material occupies a narrow slice of the dB window and the rail
+        # draws as a flat wall (measured: 6 distinct lengths out of 37 bars).
+        autoGain: true
+        # Levels at or below this count as silence.
+        gate: 0.04
+        # Spectrum range.
+        minHz: 45
+        maxHz: 16000
+        # Transient accent (0–2): the part of a band that jumped above its own slow average
+        # is multiplied up, so a drum reads as a hit and not as a slightly faster swell.
+        punch: 0.55
+        # Per-band micro-motion (0–0.35): a slow random walk multiplied into each band's
+        # level — this is what stops neighbouring segments moving as one body.
+        flutter: 0.08
+        # Turn off the rail's built-in "newest turn is highlighted" state.
+        disableActiveHighlight: true
+        # Highlight the mark under the pointer — and nothing while the pointer is away.
+        hoverHighlight: true
+        # While silent, hand the marks back to their own styles instead of holding a floor.
+        restoreOnSilence: true
+        # Shortest mark, as a fraction of its full 20 px — the rail's own dormant scale.
+        minScale: 0.4
+        # Longest mark, as a fraction of its full 20 px.
+        maxScale: 1
+        # Draw the lowest band at the top of the rail instead of at its foot.
+        invert: false
+        # Which edge the rail sits on: right (where the app puts it) or left. Moving the
+        # rail mirrors the marks too, so they hang off the edge they sit against.
+        side: right
+        # theme = the rail's own colour; spectrum = hue by band; custom = one colour.
+        colorMode: theme
+        # Colour for colorMode: custom.
+        customColor: '#4d93f8'
+        # Let each segment's brightness follow its level, so a long mark also reads strong.
+        glow: true
+        # Draw a synthetic waveform while no capture is live (off by default: a dancing
+        # rail that reads nothing would be a lie).
+        demo: false
